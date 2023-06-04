@@ -8,6 +8,8 @@ const formattedDate = require('../helpers/datetime')
 const BadRequest = require('../errors/bad-request')
 const openai = require('openai')
 const { retweet } = require('./tweetController')
+const { cloudinary } = require('../helpers/cloudinary')
+const uploadImage = require('../helpers/uploadImage')
 
 const getAllUsers = async (req, res) => {
   const users = await User.find()
@@ -133,18 +135,31 @@ const unfollowRequest = async (req, res) => {
 }
 
 const editProfile = async (req, res) => {
+  console.log(req.body)
   const { userId } = req.user
   const { _id: editedUserId } = req.body
 
   if (userId !== editedUserId)
     throw new BadRequestError('you cannot edit other users profile')
 
-  const { _id, password, ...editableData } = req.body
+  const { _id, password, profileImg, bannerImg, ...editableData } = req.body
+
+  const user = await User.findById(userId)
+
+  let newBannerImg = bannerImg
+  let newProfileImg = profileImg
+
+  if (user.bannerImg !== bannerImg) newBannerImg = await uploadImage(bannerImg)
+
+  if (user.profileImg !== profileImg)
+    newProfileImg = await uploadImage(profileImg)
 
   const updatedUser = await User.findByIdAndUpdate(
     editedUserId,
     {
       ...editableData,
+      bannerImg: newBannerImg,
+      profileImg: newProfileImg,
     },
     { new: 'true', runValidators: 'true' }
   )
